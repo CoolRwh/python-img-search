@@ -1,12 +1,14 @@
 version: "3.1"
 services:
   python:
-    image: 'ppp:v3'
+    image: 'img-search:v2'
     container_name: python
     hostname: python
     privileged: true
     restart: always
+    working_dir: /docker/python-img-search
+    command: ["python","searchServer.py"]
     ports:
-      - "5001:5001"
+      - "5555:5555"
     volumes:
-      - 'E:\www\yzh\towhee-img-search:/docker/hyperf'
+      - 'F:\work\yzh\python-img-search:/docker/python-img-search'

@@ -14,10 +14,14 @@ RUN apt-get install -y python3-opencv
 
 WORKDIR /docker/data
 
-# COPY requirements.txt requirements.txt
-
+COPY requirements.txt requirements.txt
 # RUN pip install -r requirements.txt
-# RUN pip install -r requirements.txt -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.com
+RUN pip install -r requirements.txt -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.com
+
+
+# RUN pip install torch==1.13.1 -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.com
+# RUN pip install torchvision==0.14.1 -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.com
+
 
 # CMD [ "python", "searchServer.py"]
 
