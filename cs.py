@@ -49,7 +49,19 @@ def extract(galleryPath):
 
 if __name__ == '__main__':
     start_time = time.time()
-    extract(config.train_pic_path)
+    # extract(config.train_pic_path)
+    path = "https://pic.yzhfuture.com/ecloud/ef439713-9979-1b7f-b432-577b05801c1f/pic/commodity/main1238801654571622.jpg"
+    ileName = os.path.basename(path)  # 图片名称
+    
+    img = image_decode(path)
+    
+    
+    data =  [2,1,4,3,6,5,8,7,10,9]
+    
+    print(data[::2])
+    
+    vec = image_embedding(img)
+    # print(vec[::2])
     end_time = time.time()
     total_time = end_time - start_time
     print("程序运行时间为：", total_time, "秒")

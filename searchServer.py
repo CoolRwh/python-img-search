@@ -8,7 +8,7 @@ from elasticsearch import Elasticsearch
 # -*- coding: utf-8 -*-
 import config
 from towhee.dc2 import pipe, ops, DataCollection
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template,jsonify
 import image_decode_custom
 
 '''
@@ -17,6 +17,9 @@ import image_decode_custom
 
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
+app.config['UPLOAD_FOLDER'] = 'static/uploaded/goods/'
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 限制上传文件大小为 16MB
+
 
 es = Elasticsearch(config.es_url)
 
@@ -176,6 +179,82 @@ p_search_pre = (
 )
 # 输出 search_res
 p_search = p_search_pre.output('search_res')
+
+
+
+
+def error(data = {},msg="error!",code=422):
+    return jsonify({"success":False,"code":code,"msg":msg,"data":data})
+
+def success(data = {},msg="success!",code=200):
+    return jsonify({"success":True,"code":code,"msg":msg,"data":data})
+
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
+
+
+# 搜索图片
+@app.route('/api/v1/search', methods=['POST'])
+def api_v1_search():
+    global es
+    if request.method == 'POST':
+        if 'query_img' not in request.files or not bool(request.files.get('query_img')):
+            return error([],"请上传图片")
+        
+        file = request.files['query_img']
+        
+        if file.filename == '':
+            return error([],"文件名称不能为空")
+        if not allowed_file(file.filename):
+             return error([],"文件类型异常")
+        
+         # Save query image
+        img = Image.open(file.stream)  # PIL image
+        # print(file.filename)
+        uploaded_img_path = app.config['UPLOAD_FOLDER'] + file.filename
+        img.save(uploaded_img_path)
+        img = image_decode_custom(uploaded_img_path)
+        vec = image_embedding(img)
+        data = {}
+        # data['vec'] = vec[::2].tolist()
+        bodydata = {
+                "_source":["_id","name","url"],
+                "size": 30,
+                "min_score": 1.6,
+                "query": {
+                    "script_score": {
+                        "query": {
+                            "match_all": {}
+                        },
+                        "script": {
+                            "source": "cosineSimilarity(params.queryVector, doc['feature'])+1.0",
+                            "params": {
+                                "queryVector": vec[::2]
+                            }
+                        }
+                    }
+                }
+            }
+        
+        results = es.search(index=config.elasticsearch_index,body=bodydata)
+        data['total'] = results['hits']['total']['value']
+        data['list']  = results['hits']['hits']
+        return success(data)
+    else:
+         return success([])
+    
+       
+
+
+
+
+
+
+
+
+
 
 
 if __name__ == "__main__":
