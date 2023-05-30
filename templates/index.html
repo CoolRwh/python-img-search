@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8" name="referrer" content="never">
+</head>
+<body>
+    <style>
+        .container {
+            width: 600px;
+            margin: 0 auto;
+        }
+
+        .container>h1 {
+            text-align: center;
+        }
+
+        .cate>a {
+            padding: 15px;
+            font-size: 20px;
+        }
+
+
+    </style>
+
+    <div class="container">
+        <h1>图片搜索-搜索 : v1</h1>
+
+        <div class="cate">
+            <a href="/"> 返回首页（刷新） </a>
+            <a href="/addimg"> 添加图片 </a>
+        </div>
+
+
+
+        <form action="/search" method="POST" enctype="multipart/form-data" style="padding-top: 30px;">
+            <input type="file" name="query_img" style="padding: 20px; background-color: darkgray;" >
+            <br>
+            <br>
+            <br>
+            <br>
+            <input type="submit" style="width: 100px;height: 30px;">
+        </form>
+
+
+        <h2>上传参数:</h2>
+        {% if query_path %}
+        <img src="{{ query_path }}" height="150px">
+        {% endif %}
+
+
+
+        <h2>返回结果:</h2>
+        {% for score in scores %}
+        <figure style="float: left; margin-right: 20px; margin-bottom: 20px;">
+            <img src="{{ score[0] }}" height="200px">
+            <figcaption>{{ score[1] }}</figcaption>
+        </figure>
+        {% endfor %}
+
+
+    </div>
+</body>
+</html>
