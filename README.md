@@ -1,12 +1,9 @@
 # towhee-img-search
 towhee+elasticsearch实现本地以图搜图
 
-elasticsearch版本为 7.4.2
+elasticsearch版本为 7.14.1
 
-github地址：[https://github.com/xjhqre/towhee-img-search](https://github.com/xjhqre/towhee-img-search)
-
-elasticsearch安装方法参考我的这篇文章：[全文检索-ElasticSearch](https://blog.csdn.net/xjhqre/article/details/124553312)
-
+github地址：[https://github.com/CoolRwh/python-img-search](https://github.com/CoolRwh/python-img-search)
 
 
 ## 使用方法
@@ -14,6 +11,10 @@ elasticsearch安装方法参考我的这篇文章：[全文检索-ElasticSearch]
 一、使用 OSS 存储图片，将图片库上传到 OSS。
 
 二、创建 elasticsearch 索引。
+
+ * 特征向量，`resnet50` 模型 提取的图片向量维度是2048，
+ * es7.4版本支持的最大维度是1024,
+ * es7.14版本支持的最大维度是2048
 
 PUT imgsearch
 
@@ -23,7 +24,7 @@ PUT imgsearch
     "properties": {
       "feature": {
         "type": "dense_vector",
-        "dims": 1024
+        "dims": 2048
       },
       "url": {
         "type": "keyword"
@@ -43,7 +44,4 @@ PUT imgsearch
 五、运行 searchServer.py，启动 web 服务。
 
 
-
-## 效果演示
-
-![image-20230408195553888](https://typora-xjhqre.oss-cn-hangzhou.aliyuncs.com/img/202304081956985.png)
+ 参考文章 ：elasticsearch安装方法参考我的这篇文章：[全文检索-ElasticSearch](https://blog.csdn.net/xjhqre/article/details/124553312)

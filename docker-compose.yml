@@ -11,4 +11,9 @@ services:
     ports:
       - "5555:5555"
     volumes:
-      - 'F:\work\yzh\python-img-search:/docker/python-img-search'
+      - '/docker/wwwroot/python-img-search:/docker/python-img-search'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "1"

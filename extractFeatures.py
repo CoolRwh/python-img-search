@@ -15,7 +15,8 @@ import image_decode_custom
 cnt = 0  # 图片处理计数
 
 
-es = Elasticsearch(config.es_url)
+es = Elasticsearch(config.elastic_url)
+
 image_decode = image_decode_custom.ImageDecodeCV2()
 image_embedding = ops.image_embedding.timm(model_name='resnet50')
 

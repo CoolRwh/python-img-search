@@ -11,6 +11,7 @@ from towhee.dc2 import pipe, ops, DataCollection
 from flask import Flask, request, render_template,jsonify
 import image_decode_custom
 
+
 '''
     以图搜图服务
 '''
@@ -21,8 +22,7 @@ app.config['UPLOAD_FOLDER'] = 'static/uploaded/goods/'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 限制上传文件大小为 16MB
 
 
-es = Elasticsearch(config.es_url)
-
+es = Elasticsearch(config.elastic_url)
 image_decode_custom = image_decode_custom.ImageDecodeCV2()
 last_upload_img = ""
 image_embedding = ops.image_embedding.timm(model_name='resnet50')
@@ -61,7 +61,6 @@ def feature_search(query):
                     imgurl = hit['_source']['url']
                     name = hit['_source']['name']
                     imgurl = imgurl.replace("#", "%23")
-                    # imgurl = "http://192.168.2.154:5555/static/uploaded/goods/" + str(imgurl)
                     imgurl = "/static/uploaded/goods/" + str(imgurl)
                     answers.append([imgurl, name])
     else:
@@ -69,10 +68,84 @@ def feature_search(query):
     return answers
 
 
+def error(data = {},msg="error!",code=422):
+    return jsonify({"success":False,"code":code,"msg":msg,"data":data})
+
+def success(data = {},msg="success!",code=200):
+    return jsonify({"success":True,"code":code,"msg":msg,"data":data})
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
+
+
+#######################################################################################################################################
+### api v1
+# 搜索图片
+@app.route('/api/v1/search', methods=['POST'])
+def api_v1_search():
+    global es
+    try:
+        if 'query_img' not in request.files or not bool(request.files.get('query_img')):
+            raise ValueError("请上传图片")
+            file = request.files['query_img']
+            if file.filename == '':
+                 raise ValueError("文件名称不能为空")
+            if not allowed_file(file.filename):
+                raise ValueError("文件类型异常")
+            
+            # Save query image
+            img = Image.open(file.stream)  # PIL image
+            # print(file.filename)
+            uploaded_img_path = app.config['UPLOAD_FOLDER'] + file.filename
+            img.save(uploaded_img_path)
+            img = image_decode_custom(uploaded_img_path)
+            vec = image_embedding(img)
+            data = {}
+            # data['vec'] = vec[::2].tolist()
+            bodydata = {
+                    "_source":["_id","name","url"],
+                    "size": 30,
+                    "min_score": 1.6,
+                    "query": {
+                        "script_score": {
+                            "query": {
+                                "match_all": {}
+                            },
+                            "script": {
+                                "source": "cosineSimilarity(params.queryVector, doc['feature'])+1.0",
+                                "params": {
+                                    "queryVector": vec[::2]
+                                }
+                            }
+                        }
+                    }
+                }
+            
+            results = es.search(index=config.elasticsearch_index,body=bodydata)
+            data['total'] = results['hits']['total']['value']
+            data['list']  = results['hits']['hits']
+            return success(data)
+    except Exception as e:
+        return error([],e.args[0])
+
+@app.route('/api/v1/img_vec', methods=['GET'])
+def api_v1_imsg_vec():
+    try:
+        path = request.values.get('url')
+        if None == path or path == "":
+            raise ValueError("图片地址不能为空！")
+        FileName = os.path.basename(path)  # 图片名称
+        img = image_decode_custom(path)
+        vec = image_embedding(img)
+        vec = vec.tolist()
+        return success(vec)
+    except Exception as e:
+        return error([],e.args[0])
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     return render_template('index.html')
-
 
 # 搜索图片
 @app.route('/search', methods=['GET', 'POST'])
@@ -110,7 +183,6 @@ def search():
                                scores=answers)
     else:
         return render_template('index.html')
-
 
 
 # 搜索图片
@@ -154,7 +226,6 @@ def addimg():
         return render_template('add_img.html')
 
 
-
 # Load image path
 def load_image(folderPath):
     for filePath in glob(folderPath):
@@ -183,79 +254,8 @@ p_search = p_search_pre.output('search_res')
 
 
 
-def error(data = {},msg="error!",code=422):
-    return jsonify({"success":False,"code":code,"msg":msg,"data":data})
-
-def success(data = {},msg="success!",code=200):
-    return jsonify({"success":True,"code":code,"msg":msg,"data":data})
-
-
-def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
-
-
-# 搜索图片
-@app.route('/api/v1/search', methods=['POST'])
-def api_v1_search():
-    global es
-    if request.method == 'POST':
-        if 'query_img' not in request.files or not bool(request.files.get('query_img')):
-            return error([],"请上传图片")
-        
-        file = request.files['query_img']
-        
-        if file.filename == '':
-            return error([],"文件名称不能为空")
-        if not allowed_file(file.filename):
-             return error([],"文件类型异常")
-        
-         # Save query image
-        img = Image.open(file.stream)  # PIL image
-        # print(file.filename)
-        uploaded_img_path = app.config['UPLOAD_FOLDER'] + file.filename
-        img.save(uploaded_img_path)
-        img = image_decode_custom(uploaded_img_path)
-        vec = image_embedding(img)
-        data = {}
-        # data['vec'] = vec[::2].tolist()
-        bodydata = {
-                "_source":["_id","name","url"],
-                "size": 30,
-                "min_score": 1.6,
-                "query": {
-                    "script_score": {
-                        "query": {
-                            "match_all": {}
-                        },
-                        "script": {
-                            "source": "cosineSimilarity(params.queryVector, doc['feature'])+1.0",
-                            "params": {
-                                "queryVector": vec[::2]
-                            }
-                        }
-                    }
-                }
-            }
-        
-        results = es.search(index=config.elasticsearch_index,body=bodydata)
-        data['total'] = results['hits']['total']['value']
-        data['list']  = results['hits']['hits']
-        return success(data)
-    else:
-         return success([])
-    
-       
-
-
-
-
-
-
-
-
 
 
 
 if __name__ == "__main__":
-    app.run("0.0.0.0",port=5555,debug=True)
+    app.run("0.0.0.0",port=5555,debug=False)

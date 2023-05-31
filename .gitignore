@@ -3,3 +3,5 @@
 config.py
 .idea/
 .vscode/
+.env
+docker-compose-dev.yml
