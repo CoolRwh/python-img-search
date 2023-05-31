@@ -78,6 +78,14 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
 
+# 图片 url 转换 成为 Vec 向量
+def urlToVec(url):
+    img = image_decode_custom(url)
+    vec = image_embedding(img)
+    return vec
+
+
+
 
 #######################################################################################################################################
 ### api v1
@@ -86,24 +94,23 @@ def allowed_file(filename):
 def api_v1_search():
     global es
     try:
+        file = request.files['query_img']
         if 'query_img' not in request.files or not bool(request.files.get('query_img')):
             raise ValueError("请上传图片")
-            file = request.files['query_img']
             if file.filename == '':
                  raise ValueError("文件名称不能为空")
             if not allowed_file(file.filename):
                 raise ValueError("文件类型异常")
             
-            # Save query image
-            img = Image.open(file.stream)  # PIL image
+                    # Save query image
+        img = Image.open(file.stream)  # PIL image
             # print(file.filename)
-            uploaded_img_path = app.config['UPLOAD_FOLDER'] + file.filename
-            img.save(uploaded_img_path)
-            img = image_decode_custom(uploaded_img_path)
-            vec = image_embedding(img)
-            data = {}
-            # data['vec'] = vec[::2].tolist()
-            bodydata = {
+        uploaded_img_path = "static/uploaded/" + file.filename
+        img.save(uploaded_img_path)
+        vec = urlToVec(uploaded_img_path)
+        data = {}
+        # data['vec'] = vec[::2].tolist()
+        bodydata = {
                     "_source":["_id","name","url"],
                     "size": 30,
                     "min_score": 1.6,
@@ -121,14 +128,15 @@ def api_v1_search():
                         }
                     }
                 }
-            
-            results = es.search(index=config.elasticsearch_index,body=bodydata)
-            data['total'] = results['hits']['total']['value']
-            data['list']  = results['hits']['hits']
-            return success(data)
+        results = es.search(index=config.elasticsearch_index,body=bodydata)
+        data['total'] = results['hits']['total']['value']
+        data['list']  = results['hits']['hits']
+        return success(data)
     except Exception as e:
         return error([],e.args[0])
 
+
+### url 转换 向量 api 接口
 @app.route('/api/v1/img_vec', methods=['GET'])
 def api_v1_imsg_vec():
     try:
@@ -136,13 +144,13 @@ def api_v1_imsg_vec():
         if None == path or path == "":
             raise ValueError("图片地址不能为空！")
         FileName = os.path.basename(path)  # 图片名称
-        img = image_decode_custom(path)
-        vec = image_embedding(img)
-        vec = vec.tolist()
+        vec = urlToVec(path).tolist()
         return success(vec)
     except Exception as e:
         return error([],e.args[0])
 
+
+#######################################################################################################################################
 @app.route('/', methods=['GET', 'POST'])
 def index():
     return render_template('index.html')
@@ -258,4 +266,4 @@ p_search = p_search_pre.output('search_res')
 
 
 if __name__ == "__main__":
-    app.run("0.0.0.0",port=5555,debug=False)
+    app.run("0.0.0.0",port=5555,debug=True)
