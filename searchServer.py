@@ -11,6 +11,7 @@ from towhee.dc2 import pipe, ops, DataCollection
 from flask import Flask, request, render_template,jsonify
 import image_decode_custom
 
+import time
 
 '''
     以图搜图服务
@@ -28,12 +29,12 @@ last_upload_img = ""
 image_embedding = ops.image_embedding.timm(model_name='resnet50')
 
 # es查询
-def feature_search(query):
+def feature_search(query,min_score=1.6):
     global es
     # print(query)
     bodydata = {
             "size": 30,
-            "min_score": 1.6,
+            "min_score":min_score,
             "query": {
                 "script_score": {
                     "query": {
@@ -42,7 +43,7 @@ def feature_search(query):
                     "script": {
                         "source": "cosineSimilarity(params.queryVector, doc['feature'])+1.0",
                         "params": {
-                            "queryVector": query[::2]
+                            "queryVector": query
                         }
                     }
                 }
@@ -66,7 +67,6 @@ def feature_search(query):
     else:
         answers = []
     return answers
-
 
 def error(data = {},msg="error!",code=422):
     return jsonify({"success":False,"code":code,"msg":msg,"data":data})
@@ -104,12 +104,12 @@ def api_v1_search():
             
                     # Save query image
         img = Image.open(file.stream)  # PIL image
-            # print(file.filename)
+            # print(file.filename)            
         uploaded_img_path = "static/uploaded/" + file.filename
         img.save(uploaded_img_path)
         vec = urlToVec(uploaded_img_path)
         data = {}
-        # data['vec'] = vec[::2].tolist()
+        # data['vec'] = vec.tolist()
         bodydata = {
                     "_source":["_id","name","url"],
                     "size": 30,
@@ -122,7 +122,7 @@ def api_v1_search():
                             "script": {
                                 "source": "cosineSimilarity(params.queryVector, doc['feature'])+1.0",
                                 "params": {
-                                    "queryVector": vec[::2]
+                                    "queryVector": vec
                                 }
                             }
                         }
@@ -148,6 +148,47 @@ def api_v1_imsg_vec():
         return success(vec)
     except Exception as e:
         return error([],e.args[0])
+
+
+### 上传图片 转换 向量 api 接口
+@app.route('/api/v1/getVecByImgFile', methods=['POST'])
+def api_v1_upload_img_to_vec():
+    try:
+        vec_size = request.form.get("vec_size","2048")
+        if vec_size  not in ["1024","2048"]:
+            raise ValueError("vec 大小异常！") 
+        
+        file = request.files['query_img']
+        if 'query_img' not in request.files or not bool(request.files.get('query_img')):
+            raise ValueError("请上传图片")
+            if file.filename == '':
+                 raise ValueError("文件名称不能为空")
+            if not allowed_file(file.filename):
+                raise ValueError("文件类型异常")
+        
+        img = Image.open(file.stream)
+        format = img.format
+        if format not in config.upload_type :
+            raise ValueError("文件格式不支持上传！")
+        
+   
+        file_name = str(round(time.time() * 10000)) + "." + format
+
+        uploaded_img_path = config.upload_path + file_name
+        #####################################
+        img.save(uploaded_img_path)
+        ##################################### 
+        vec = urlToVec(uploaded_img_path)
+
+        if "1024" == vec_size:
+            vec = vec[::2].tolist()
+        else:
+            vec = vec.tolist()  
+            
+        return success(vec)
+    except Exception as e:
+        return error([],e.args[0])
+
 
 
 #######################################################################################################################################
@@ -213,7 +254,7 @@ def addimg():
         imgUrl = file.filename
         img = image_decode_custom(uploaded_img_path2)
         vec = image_embedding(img)
-        doc = {'url': imgUrl, 'feature': vec[::2],'name': fileName}
+        doc = {'url': imgUrl, 'feature': vec,'name': fileName}
         es.index(index=config.elasticsearch_index, body=doc)  # 保存到
         print("当前图片：" + fileName + " ---> ")
         #############################################################################################
