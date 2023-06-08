@@ -7,7 +7,7 @@ from PIL import Image
 from elasticsearch import Elasticsearch
 # -*- coding: utf-8 -*-
 import config
-from towhee.dc2 import pipe, ops
+from towhee.dc2 import pipe, ops, DataCollection
 from flask import Flask, request, render_template,jsonify
 import image_decode_custom
 
