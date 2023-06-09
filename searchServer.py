@@ -218,83 +218,83 @@ def api_v1_upload_img_to_vec():
 def index():
     return render_template('index.html')
 
-# 搜索图片
-@app.route('/search', methods=['GET', 'POST'])
-def search():
-    if request.method == 'POST':
-        file = request.files['query_img']
+# # 搜索图片
+# @app.route('/search', methods=['GET', 'POST'])
+# def search():
+#     if request.method == 'POST':
+#         file = request.files['query_img']
 
-        # Save query image
-        img = Image.open(file.stream)  # PIL image
-        # print(file.filename)
-        uploaded_img_path = "static/uploaded/" + file.filename
-        # print(uploaded_img_path)
-        img.save(uploaded_img_path)
+#         # Save query image
+#         img = Image.open(file.stream)  # PIL image
+#         # print(file.filename)
+#         uploaded_img_path = "static/uploaded/" + file.filename
+#         # print(uploaded_img_path)
+#         img.save(uploaded_img_path)
 
-        # Run search
-        dc = p_search(uploaded_img_path)
-        # 得到查询结果
-        answers = dc.get()[0]
+#         # Run search
+#         dc = p_search(uploaded_img_path)
+#         # 得到查询结果
+#         answers = dc.get()[0]
 
-        # 删除上一次上传的图片
-        global last_upload_img
+#         # 删除上一次上传的图片
+#         global last_upload_img
         
-        # print(last_upload_img)
+#         # print(last_upload_img)
         
-        if last_upload_img is not None and len(last_upload_img) != 0:
-            if os.path.exists(last_upload_img):
-                os.remove(last_upload_img)
-            else:
-                print('删除上一次上传图片失败:', last_upload_img)
+#         if last_upload_img is not None and len(last_upload_img) != 0:
+#             if os.path.exists(last_upload_img):
+#                 os.remove(last_upload_img)
+#             else:
+#                 print('删除上一次上传图片失败:', last_upload_img)
 
-        last_upload_img = config.FILE_DIR + '/' + uploaded_img_path
+#         last_upload_img = config.FILE_DIR + '/' + uploaded_img_path
 
-        return render_template('index.html',
-                               query_path=urllib.parse.quote(uploaded_img_path),
-                               scores=answers)
-    else:
-        return render_template('index.html')
+#         return render_template('index.html',
+#                                query_path=urllib.parse.quote(uploaded_img_path),
+#                                scores=answers)
+#     else:
+#         return render_template('index.html')
 
 
-# 搜索图片
-@app.route('/addimg', methods=['GET', 'POST'])
-def addimg():
-    if request.method == 'POST':
-        file = request.files['query_img']
+# # 搜索图片
+# @app.route('/addimg', methods=['GET', 'POST'])
+# def addimg():
+#     if request.method == 'POST':
+#         file = request.files['query_img']
 
-        # Save query image
-        img = Image.open(file.stream)  # PIL image
-        # print(file.filename)
-        uploaded_img_path = "static/uploaded/" + file.filename
-        # print(uploaded_img_path)
-        img.save(uploaded_img_path)
-        #############################################################################################
-        ############ 上传图片到 es 
-        uploaded_img_path2 = "static/uploaded/goods/" + file.filename
-        img.save(uploaded_img_path2)
-        fileName = file.filename
-        imgUrl = file.filename
-        img = image_decode_custom(uploaded_img_path2)
-        vec = image_embedding(img)
-        doc = {'url': imgUrl, 'feature': vec,'name': fileName}
-        es.index(index=config.elasticsearch_index, body=doc)  # 保存到
-        print("当前图片：" + fileName + " ---> ")
-        #############################################################################################
-        # 删除上一次上传的图片
-        global last_upload_img
+#         # Save query image
+#         img = Image.open(file.stream)  # PIL image
+#         # print(file.filename)
+#         uploaded_img_path = "static/uploaded/" + file.filename
+#         # print(uploaded_img_path)
+#         img.save(uploaded_img_path)
+#         #############################################################################################
+#         ############ 上传图片到 es 
+#         uploaded_img_path2 = "static/uploaded/goods/" + file.filename
+#         img.save(uploaded_img_path2)
+#         fileName = file.filename
+#         imgUrl = file.filename
+#         img = image_decode_custom(uploaded_img_path2)
+#         vec = image_embedding(img)
+#         doc = {'url': imgUrl, 'feature': vec,'name': fileName}
+#         es.index(index=config.elasticsearch_index, body=doc)  # 保存到
+#         print("当前图片：" + fileName + " ---> ")
+#         #############################################################################################
+#         # 删除上一次上传的图片
+#         global last_upload_img
       
-        if last_upload_img is not None and len(last_upload_img) != 0:
-            if os.path.exists(last_upload_img):
-                os.remove(last_upload_img)
-            else:
-                print('删除上一次上传图片失败:', last_upload_img)
+#         if last_upload_img is not None and len(last_upload_img) != 0:
+#             if os.path.exists(last_upload_img):
+#                 os.remove(last_upload_img)
+#             else:
+#                 print('删除上一次上传图片失败:', last_upload_img)
 
-        last_upload_img = config.FILE_DIR + '/' + uploaded_img_path
+#         last_upload_img = config.FILE_DIR + '/' + uploaded_img_path
 
-        return render_template('add_img.html',
-                               query_path=urllib.parse.quote(uploaded_img_path))
-    else:
-        return render_template('add_img.html')
+#         return render_template('add_img.html',
+#                                query_path=urllib.parse.quote(uploaded_img_path))
+#     else:
+#         return render_template('add_img.html')
 
 
 # Load image path
@@ -303,24 +303,6 @@ def load_image(folderPath):
         if os.path.splitext(filePath)[1] in config.types:
             yield filePath
 
-
-# Embedding pipeline
-p_embed = (
-    pipe.input('src')
-    # 传入src，输出img_path
-    .flat_map('src', 'img_path', load_image)
-    # 传入img_path，输出img
-    .map('img_path', 'img', image_decode_custom)
-    # 传入img，输出vec
-    .map('img', 'vec', ops.image_embedding.timm(model_name='resnet50'))
-)
-
-# Search pipeline
-p_search_pre = (
-    p_embed.map('vec', 'search_res', feature_search)
-)
-# 输出 search_res
-p_search = p_search_pre.output('search_res')
 
 
 
