@@ -153,7 +153,7 @@ def api_v1_imsg_vec():
         
         check1 = is_contains_chinese(path)
         
-        if check1 == True :
+        if is_contains_chinese == True :
             img = Image.open(path)
             format = img.format
             if format not in config.upload_type :
@@ -297,12 +297,30 @@ def index():
 #         return render_template('add_img.html')
 
 
-# Load image path
-def load_image(folderPath):
-    for filePath in glob(folderPath):
-        if os.path.splitext(filePath)[1] in config.types:
-            yield filePath
+# # Load image path
+# def load_image(folderPath):
+#     for filePath in glob(folderPath):
+#         if os.path.splitext(filePath)[1] in config.types:
+#             yield filePath
 
+
+# # Embedding pipeline
+# p_embed = (
+#     pipe.input('src')
+#     # 传入src，输出img_path
+#     .flat_map('src', 'img_path', load_image)
+#     # 传入img_path，输出img
+#     .map('img_path', 'img', image_decode_custom)
+#     # 传入img，输出vec
+#     .map('img', 'vec', ops.image_embedding.timm(model_name='resnet50'))
+# )
+
+# # Search pipeline
+# p_search_pre = (
+#     p_embed.map('vec', 'search_res', feature_search)
+# )
+# # 输出 search_res
+# p_search = p_search_pre.output('search_res')
 
 
 
