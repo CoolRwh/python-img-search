@@ -85,6 +85,13 @@ def urlToVec(url):
     return vec
 
 
+def is_contains_chinese(strs):
+    for _char in strs:
+        if '\u4e00' <= _char <= '\u9fa5':
+            return True
+    return False
+
+
 
 
 #######################################################################################################################################
@@ -143,7 +150,22 @@ def api_v1_imsg_vec():
         path = request.values.get('url')
         if None == path or path == "":
             raise ValueError("图片地址不能为空！")
-        FileName = os.path.basename(path)  # 图片名称
+        
+        check1 = is_contains_chinese(path)
+        
+        if check1 == True :
+            img = Image.open(path)
+            format = img.format
+            if format not in config.upload_type :
+                raise ValueError("文件格式不支持上传！")
+            
+            path = ''
+            file_name = str(round(time.time() * 10000)) + "." + format
+            uploaded_img_path = config.upload_path + file_name
+            #####################################
+            img.save(uploaded_img_path)
+            path = uploaded_img_path
+        
         vec = urlToVec(path).tolist()
         return success(vec)
     except Exception as e:
