@@ -26,7 +26,10 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 限制上传文件大小�
 es = Elasticsearch(config.elastic_url)
 image_decode_custom = image_decode_custom.ImageDecodeCV2()
 last_upload_img = ""
+
+
 image_embedding = ops.image_embedding.timm(model_name='resnet50')
+
 
 # es查询
 def feature_search(query,min_score=1.6):
@@ -329,4 +332,6 @@ def index():
 
 
 if __name__ == "__main__":
-    app.run("0.0.0.0",port=5555,debug=True)
+    
+    
+    app.run(config.server_host,port=config.server_port,debug=config.server_debug)
