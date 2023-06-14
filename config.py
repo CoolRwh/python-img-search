@@ -29,6 +29,12 @@ train_pic_path = r"E:\www\yzh\towhee-img-search\static\uploaded\pen\*"
 
 types = [".jpg", ".jpeg", ".gif", ".png", ".JPG", ".JPEG", ".GIF", ".PNG"]
 
+
+upload_type =["jpg", "jpeg", "gif", "png", "JPG", "JPEG", "GIF", "PNG"]
+
+
+upload_path= 'static/uploaded/'
+
 # elasticsearch
 elasticsearch_index = "imgsearch"  # 索引名，示例 imgsearch
 elastic_url = os.environ.get('ELASTIC_SEARCH_URL',"http://elastic:123456@127.0.0.1:9200")
