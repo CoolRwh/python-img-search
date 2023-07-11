@@ -44,4 +44,4 @@ PUT imgsearch
 五、运行 searchServer.py，启动 web 服务。
 
 
- 参考文章 ：elasticsearch安装方法参考我的这篇文章：[全文检索-ElasticSearch](https://blog.csdn.net/xjhqre/article/details/124553312)
+ 参考文章 ：[全文检索-ElasticSearch](https://blog.csdn.net/xjhqre/article/details/124553312)
