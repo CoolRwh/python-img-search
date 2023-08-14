@@ -2,5 +2,7 @@
 /static
 .idea/
 .vscode/
+.venv/
 .env
+*.log
 docker-compose-dev.yml

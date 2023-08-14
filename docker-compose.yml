@@ -11,7 +11,7 @@ services:
     ports:
       - "5555:5555"
     volumes:
-      - '/docker/wwwroot/python-img-search:/docker/python-img-search'
+      - './:/docker/python-img-search'
     logging:
       driver: "json-file"
       options:
