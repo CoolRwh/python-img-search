@@ -16,6 +16,18 @@ github地址：[https://github.com/CoolRwh/python-img-search](https://github.com
  * es7.4版本支持的最大维度是1024,
  * es7.14版本支持的最大维度是2048
 
+模型地址
+```
+model_urls = {
+    'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
+    'resnet34': 'https://download.pytorch.org/models/resnet34-333f7ec4.pth',
+    'resnet50': 'https://download.pytorch.org/models/resnet50-19c8e357.pth',
+    'resnet101': 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
+    'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
+}
+
+```
+
 PUT imgsearch
 
 ```json
@@ -42,6 +54,8 @@ PUT imgsearch
 四、运行 extractFeatures.py，提取图片特征向量并存储到elasticsearch。
 
 五、运行 searchServer.py，启动 web 服务。
+
+
 
 
 参考文章 ：elasticsearch安装方法参考文章：[全文检索-ElasticSearch](https://blog.csdn.net/xjhqre/article/details/124553312)
