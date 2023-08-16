@@ -1,7 +1,8 @@
 /__pycache__
 /static
-config.py
-.idea/
-.vscode/
+.venv
+.idea
+.vscode
 .env
+*.log
 docker-compose-dev.yml
