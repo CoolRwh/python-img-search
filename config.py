@@ -4,7 +4,6 @@
 import os
 from dotenv import load_dotenv, find_dotenv
 
-
 #### 加载 .env  到 环境变量
 load_dotenv(find_dotenv('.env'))
 
@@ -13,12 +12,10 @@ load_dotenv(find_dotenv('.env'))
 server_host = os.environ.get('SERVER_HOST', '0.0.0.0')
 server_port = os.environ.get("SERVER_PORT",5555)
 
-server_debug = True
-
 if "False" == os.environ.get("SERVER_DEBUG"):
     server_debug = False
-
-print("打开调试模式：",server_debug)
+else:
+    server_debug = True
 
 
 FILE_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -33,7 +30,10 @@ types = [".jpg", ".jpeg", ".gif", ".png", ".JPG", ".JPEG", ".GIF", ".PNG"]
 upload_type =["jpg", "jpeg", "gif", "png", "JPG", "JPEG", "GIF", "PNG"]
 
 
-upload_path= 'static/uploaded/'
+upload_path= 'static/uploaded/vec/'
+# 检查目录是否存在
+if not os.path.exists(upload_path):
+    os.mkdir(upload_path)
 
 # elasticsearch
 elasticsearch_index = "imgsearch"  # 索引名，示例 imgsearch

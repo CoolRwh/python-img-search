@@ -1,17 +1,16 @@
 # -*- coding: utf-8 -*-
-import os
-import urllib
-from glob import glob
+import time
+from io import BytesIO
 
+import requests
 from PIL import Image
 from elasticsearch import Elasticsearch
+from flask import Flask, request, render_template, jsonify
+from towhee.dc2 import ops
+
 # -*- coding: utf-8 -*-
 import config
-from towhee.dc2 import pipe, ops, DataCollection
-from flask import Flask, request, render_template,jsonify
 import image_decode_custom
-
-import time
 
 '''
     以图搜图服务
@@ -22,39 +21,37 @@ app.config['JSON_AS_ASCII'] = False
 app.config['UPLOAD_FOLDER'] = 'static/uploaded/goods/'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 限制上传文件大小为 16MB
 
-
 es = Elasticsearch(config.elastic_url)
 image_decode_custom = image_decode_custom.ImageDecodeCV2()
 last_upload_img = ""
-
 
 image_embedding = ops.image_embedding.timm(model_name='resnet50')
 
 
 # es查询
-def feature_search(query,min_score=1.6):
+def feature_search(query, min_score=1.6):
     global es
     # print(query)
     bodydata = {
-            "size": 30,
-            "min_score":min_score,
-            "query": {
-                "script_score": {
-                    "query": {
-                        "match_all": {}
-                    },
-                    "script": {
-                        "source": "cosineSimilarity(params.queryVector, doc['feature'])+1.0",
-                        "params": {
-                            "queryVector": query
-                        }
+        "size": 30,
+        "min_score": min_score,
+        "query": {
+            "script_score": {
+                "query": {
+                    "match_all": {}
+                },
+                "script": {
+                    "source": "cosineSimilarity(params.queryVector, doc['feature'])+1.0",
+                    "params": {
+                        "queryVector": query
                     }
                 }
             }
         }
-    results = es.search(index=config.elasticsearch_index,body=bodydata)
+    }
+    results = es.search(index=config.elasticsearch_index, body=bodydata)
     hitCount = results['hits']['total']['value']
-    print("hitCount",hitCount)
+    print("hitCount", hitCount)
     if hitCount > 0:
         answers = []
         max_score = results['hits']['max_score']
@@ -71,18 +68,22 @@ def feature_search(query,min_score=1.6):
         answers = []
     return answers
 
-def error(data = {},msg="error!",code=422):
-    return jsonify({"success":False,"code":code,"msg":msg,"data":data})
 
-def success(data = {},msg="success!",code=200):
-    return jsonify({"success":True,"code":code,"msg":msg,"data":data})
+def error(data={}, msg="error!", code=422):
+    return jsonify({"success": False, "code": code, "msg": msg, "data": data})
+
+
+def success(data={}, msg="success!", code=200):
+    return jsonify({"success": True, "code": code, "msg": msg, "data": data})
+
 
 def allowed_file(filename):
     return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
+        filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
+
 
 # 图片 url 转换 成为 Vec 向量
-def urlToVec(url):
+def url_to_vec(url):
     img = image_decode_custom(url)
     vec = image_embedding(img)
     return vec
@@ -95,8 +96,6 @@ def is_contains_chinese(strs):
     return False
 
 
-
-
 #######################################################################################################################################
 ### api v1
 # 搜索图片
@@ -107,119 +106,117 @@ def api_v1_search():
         file = request.files['query_img']
         if 'query_img' not in request.files or not bool(request.files.get('query_img')):
             raise ValueError("请上传图片")
-            if file.filename == '':
-                 raise ValueError("文件名称不能为空")
-            if not allowed_file(file.filename):
-                raise ValueError("文件类型异常")
-            
-                    # Save query image
+        if file.filename == '':
+            raise ValueError("文件名称不能为空")
+        if not allowed_file(file.filename):
+            raise ValueError("文件类型异常")
+        # Save query image
         img = Image.open(file.stream)  # PIL image
-            # print(file.filename)            
+        # print(file.filename)
         uploaded_img_path = "static/uploaded/" + file.filename
         img.save(uploaded_img_path)
-        vec = urlToVec(uploaded_img_path)
+        vec = url_to_vec(uploaded_img_path)
         data = {}
         # data['vec'] = vec.tolist()
         bodydata = {
-                    "_source":["_id","name","url"],
-                    "size": 30,
-                    "min_score": 1.6,
+            "_source": ["_id", "name", "url"],
+            "size": 30,
+            "min_score": 1.6,
+            "query": {
+                "script_score": {
                     "query": {
-                        "script_score": {
-                            "query": {
-                                "match_all": {}
-                            },
-                            "script": {
-                                "source": "cosineSimilarity(params.queryVector, doc['feature'])+1.0",
-                                "params": {
-                                    "queryVector": vec
-                                }
-                            }
+                        "match_all": {}
+                    },
+                    "script": {
+                        "source": "cosineSimilarity(params.queryVector, doc['feature'])+1.0",
+                        "params": {
+                            "queryVector": vec
                         }
                     }
                 }
-        results = es.search(index=config.elasticsearch_index,body=bodydata)
+            }
+        }
+        results = es.search(index=config.elasticsearch_index, body=bodydata)
         data['total'] = results['hits']['total']['value']
-        data['list']  = results['hits']['hits']
+        data['list'] = results['hits']['hits']
         return success(data)
     except Exception as e:
-        return error([],e.args[0])
+        return error([], e.args[0])
 
 
 ### url 转换 向量 api 接口
 @app.route('/api/v1/img_vec', methods=['GET'])
-def api_v1_imsg_vec():
+def api_v1_img_vec():
     try:
         path = request.values.get('url')
         if None == path or path == "":
             raise ValueError("图片地址不能为空！")
-        
-        check1 = is_contains_chinese(path)
-        
-        if is_contains_chinese == True :
-            img = Image.open(path)
-            format = img.format
-            if format not in config.upload_type :
-                raise ValueError("文件格式不支持上传！")
-            
-            path = ''
-            file_name = str(round(time.time() * 10000)) + "." + format
-            uploaded_img_path = config.upload_path + file_name
-            #####################################
-            img.save(uploaded_img_path)
-            path = uploaded_img_path
-        
-        vec = urlToVec(path).tolist()
+        # 检查 路径是否 含有中文
+        path = upload_filename_by_chinese(path)
+        # 获取向量
+        vec = url_to_vec(path).tolist()
         return success(vec)
     except Exception as e:
-        return error([],e.args[0])
+        return error([], e.args[0])
+
+
+def upload_filename_by_chinese(path):
+    if is_contains_chinese(path):
+        response = requests.get(path)
+        img = Image.open(BytesIO(response.content))
+        if img.format not in config.upload_type:
+            raise ValueError("文件格式不支持上传！")
+        file_name = str(round(time.time() * 10000)) + "." + img.format
+        uploaded_img_path = config.upload_path + file_name
+        # 保存图片到本地
+        img.save(uploaded_img_path)
+        path = uploaded_img_path
+    return path
 
 
 ### 上传图片 转换 向量 api 接口
 @app.route('/api/v1/getVecByImgFile', methods=['POST'])
 def api_v1_upload_img_to_vec():
     try:
-        vec_size = request.form.get("vec_size","2048")
-        if vec_size  not in ["1024","2048"]:
-            raise ValueError("vec 大小异常！") 
-        
+        vec_size = request.form.get("vec_size", "2048")
+        if vec_size not in ["1024", "2048"]:
+            raise ValueError("vec 大小异常！")
+
         file = request.files['query_img']
         if 'query_img' not in request.files or not bool(request.files.get('query_img')):
             raise ValueError("请上传图片")
-            if file.filename == '':
-                 raise ValueError("文件名称不能为空")
-            if not allowed_file(file.filename):
-                raise ValueError("文件类型异常")
-        
+        if file.filename == '':
+            raise ValueError("文件名称不能为空")
+        if not allowed_file(file.filename):
+            raise ValueError("文件类型异常")
         img = Image.open(file.stream)
         format = img.format
-        if format not in config.upload_type :
+        if format not in config.upload_type:
             raise ValueError("文件格式不支持上传！")
-        
-   
+
         file_name = str(round(time.time() * 10000)) + "." + format
 
         uploaded_img_path = config.upload_path + file_name
         #####################################
         img.save(uploaded_img_path)
         ##################################### 
-        vec = urlToVec(uploaded_img_path)
+        vec = url_to_vec(uploaded_img_path)
 
         if "1024" == vec_size:
             vec = vec[::2].tolist()
         else:
-            vec = vec.tolist()  
-            
+            vec = vec.tolist()
+
         return success(vec)
     except Exception as e:
-        return error([],e.args[0])
-
+        return error([], e.args[0])
 
 
 #######################################################################################################################################
 @app.route('/', methods=['GET', 'POST'])
 def index():
     return render_template('index.html')
+
 
 # # 搜索图片
 # @app.route('/search', methods=['GET', 'POST'])
@@ -241,9 +238,9 @@ def index():
 
 #         # 删除上一次上传的图片
 #         global last_upload_img
-        
+
 #         # print(last_upload_img)
-        
+
 #         if last_upload_img is not None and len(last_upload_img) != 0:
 #             if os.path.exists(last_upload_img):
 #                 os.remove(last_upload_img)
@@ -285,7 +282,7 @@ def index():
 #         #############################################################################################
 #         # 删除上一次上传的图片
 #         global last_upload_img
-      
+
 #         if last_upload_img is not None and len(last_upload_img) != 0:
 #             if os.path.exists(last_upload_img):
 #                 os.remove(last_upload_img)
@@ -326,12 +323,5 @@ def index():
 # p_search = p_search_pre.output('search_res')
 
 
-
-
-
-
-
 if __name__ == "__main__":
-    
-    
-    app.run(config.server_host,port=config.server_port,debug=config.server_debug)
+    app.run(host=config.server_host, port=config.server_port)
