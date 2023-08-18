@@ -6,7 +6,7 @@ import requests
 from PIL import Image
 from elasticsearch import Elasticsearch
 from flask import Flask, request, render_template, jsonify
-from towhee.dc2 import ops
+from towhee import ops
 
 # -*- coding: utf-8 -*-
 import config
