@@ -16,11 +16,13 @@ RUN apt-get install -y python3-opencv
 
 WORKDIR /docker/data
 
+# 设置镜像源
+RUN pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
 
+RUN python -m pip install --upgrade pip
 ## 安装 扩展
 COPY requirements.txt requirements.txt
-# RUN pip install -r requirements.txt
-RUN pip install -r requirements.txt -i http://pypi.douban.com/simple/ --trusted-host pypi.douban.com
+RUN pip install -r requirements.txt
 
 # CMD [ "python", "searchServer.py"]
 
